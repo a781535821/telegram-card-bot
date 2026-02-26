@@ -1,8 +1,8 @@
 import logging
 import asyncio
-import sys  # 新增：用于平台判断
+import sys
 
-# 兼容 Windows 的 asyncio policy（只在 Windows 上设置，Linux/Render 上跳过）
+# 只在 Windows 上设置 SelectorEventLoopPolicy（Render 是 Linux，不会执行）
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
@@ -153,7 +153,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
 
     if data.startswith("add_card_") and is_admin:
-        category = data[9:]  # add_card_1日体验 → 1日体验
+        category = data[9:]
         PENDING_ADD_CARD[user_id] = category
         text = f"正在为 **{category}** 添加卡密\n请直接回复卡密内容（例如：用户名:abc 密码:123 有效期:1天）\n\n回复后自动添加。"
         keyboard = [[InlineKeyboardButton("取消添加", callback_data="cancel_add_card")]]
@@ -296,18 +296,37 @@ def main() -> None:
     application = Application.builder().token(TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("add", add_card))  # 保留命令方式
+    application.add_handler(CommandHandler("add", add_card))
 
     application.add_handler(CallbackQueryHandler(button_callback))
 
     # 消息处理：先支付确认，再添加卡密（避免冲突）
-    # 注意：两个 MessageHandler 都会触发，但因为 handle_payment_confirm 先注册且有 return，所以优先匹配
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_payment_confirm))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_add_card_message))
 
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    # 针对 Python 3.14 + Render 环境的兼容写法
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(application.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,      # 启动时丢弃旧消息，避免堆积
+            poll_interval=0.0,
+            timeout=10,
+            bootstrap_retries=-1,
+            close_loop=False                # 防止关闭警告
+        ))
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        logger.error(f"Polling 异常: {e}")
+    finally:
+        # 清理
+        loop.run_until_complete(application.stop())
+        loop.close()
 
 if __name__ == '__main__':
     main()
+
 
 
