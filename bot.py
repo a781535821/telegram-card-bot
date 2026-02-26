@@ -1,8 +1,10 @@
 import logging
 import asyncio
+import sys  # 新增：用于平台判断
 
-# 兼容 Python 3.14 + Render 线程环境（必须放在所有 import telegram 之前）
-asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+# 兼容 Windows 的 asyncio policy（只在 Windows 上设置，Linux/Render 上跳过）
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -21,7 +23,7 @@ ADMIN_ID = 7951568814
 # 商品列表（用于添加卡密按钮）
 PRODUCTS = ['1日体验', '体验套餐', '月度套餐', '半年套餐', '年度套餐']
 
-# 商品卡密（内存存储，重启丢失，建议后期改用文件）
+# 商品卡密（内存存储，重启丢失，建议后期改用文件或数据库）
 CARDS = {
     '1日体验': ['账号:密码示例1', '账号:密码示例2'],
     '体验套餐': [],
@@ -67,7 +69,7 @@ PAYMENT_METHODS = {
     }
 }
 
-# 客服联系方式（已修改成你的真实信息）
+# 客服联系方式（请修改成你的真实信息）
 CUSTOMER_SERVICE = {
     'text': "客服联系方式：\n@doubao1998\n或直接私聊我处理问题",
     'link': "https://t.me/doubao1998"
@@ -299,6 +301,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(button_callback))
 
     # 消息处理：先支付确认，再添加卡密（避免冲突）
+    # 注意：两个 MessageHandler 都会触发，但因为 handle_payment_confirm 先注册且有 return，所以优先匹配
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_payment_confirm))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_add_card_message))
 
@@ -306,4 +309,5 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
+
 
