@@ -1,7 +1,7 @@
 import logging
 import asyncio
 
-# 兼容 Python 3.14 + Render 线程环境（必须加在 import telegram 之前）
+# 兼容 Python 3.14 + Render 线程环境（必须放在所有 import telegram 之前）
 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -67,10 +67,10 @@ PAYMENT_METHODS = {
     }
 }
 
-# 客服联系方式（请修改成你的真实信息）
+# 客服联系方式（已修改成你的真实信息）
 CUSTOMER_SERVICE = {
-    'text': "客服联系方式：\n@你的客服用户名\n或直接私聊我处理问题",
-    'link': "https://t.me/你的客服用户名"
+    'text': "客服联系方式：\n@doubao1998\n或直接私聊我处理问题",
+    'link': "https://t.me/doubao1998"
 }
 # ==============================================
 
@@ -306,3 +306,4 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
+
