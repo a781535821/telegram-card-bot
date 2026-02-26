@@ -1,4 +1,9 @@
 import logging
+import asyncio
+
+# 兼容 Python 3.14 + Render 线程环境（必须加在 import telegram 之前）
+asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -64,8 +69,8 @@ PAYMENT_METHODS = {
 
 # 客服联系方式（请修改成你的真实信息）
 CUSTOMER_SERVICE = {
-    'text': "客服联系方式：\n@doubao1998\n或直接私聊我处理问题",
-    'link': "https://t.me/doubao1998"
+    'text': "客服联系方式：\n@你的客服用户名\n或直接私聊我处理问题",
+    'link': "https://t.me/你的客服用户名"
 }
 # ==============================================
 
@@ -293,7 +298,7 @@ def main() -> None:
 
     application.add_handler(CallbackQueryHandler(button_callback))
 
-    # 消息处理：先处理支付确认，再处理添加卡密（避免冲突）
+    # 消息处理：先支付确认，再添加卡密（避免冲突）
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_payment_confirm))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_add_card_message))
 
@@ -301,3 +306,6 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
+if __name__ == '__main__':
+    main()
+
