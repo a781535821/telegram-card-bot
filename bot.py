@@ -2,7 +2,7 @@ import logging
 import asyncio
 import sys
 
-# 只在 Windows 上设置 SelectorEventLoopPolicy（Render 是 Linux，不会执行）
+# 只在 Windows 上设置 SelectorEventLoopPolicy（Render/Linux 跳过）
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
@@ -86,7 +86,7 @@ PENDING_ADD_CARD = {}  # 管理员正在添加的商品 {user_id: '商品名'}
 def get_main_menu(is_admin=False):
     keyboard = [
         [InlineKeyboardButton("查看套餐", callback_data="show_packages")],
-        [InlineKeyboardButton("帮助 / 说明", callback_data="help")],
+        [InlineKeyboardButton("飞机号 / 卡网", callback_data="tongxintg.com")],
         [InlineKeyboardButton("联系客服", callback_data="contact_support")],
     ]
     if is_admin:
@@ -210,123 +210,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             'order_id': order_id
         }
         if method_key == 'usdt':
-            display_amount = base_amount / 7
-            text = (
-                f"请支付 **${display_amount:.2f} USDT** (TRC-20)\n"
-                f"地址：`{method['address']}`\n"
-                f"备注（必填）：{order_id}\n\n"
-                f"支付后回复：已支付 {order_id}"
-            )
-            await query.message.reply_text(text, parse_mode='Markdown')
-        else:
-            display_amount = base_amount
-            photo = method['qr_photo']
-            caption = (
-                f"请使用 {method['name']} 扫码支付 **¥{display_amount:.2f}**\n"
-                f"备注/附言（可选）：{order_id}\n\n"
-                f"支付后回复：已支付 {order_id}"
-            )
-            if photo.startswith('http'):
-                await query.message.reply_photo(photo=photo, caption=caption)
-            else:
-                await query.message.reply_photo(photo=open(photo, 'rb'), caption=caption)
-        return
+            display_amount = base_amount /
 
-    if data == 'soldout':
-        await query.answer("已售罄～", show_alert=True)
-
-async def handle_add_card_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user_id = update.effective_user.id
-    if user_id not in PENDING_ADD_CARD or user_id != ADMIN_ID:
-        return
-    category = PENDING_ADD_CARD[user_id]
-    card = update.message.text.strip()
-    if category not in CARDS:
-        CARDS[category] = []
-    CARDS[category].append(card)
-    await update.message.reply_text(f"添加成功！{category} 已添加卡密，现在剩余 {len(CARDS[category])} 份")
-    del PENDING_ADD_CARD[user_id]
-    reply_markup = get_main_menu(user_id == ADMIN_ID)
-    await update.message.reply_text("添加完成！请选择功能：", reply_markup=reply_markup)
-
-async def handle_payment_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    text = update.message.text.strip().lower()
-    user_id = update.effective_user.id
-    if not text.startswith('已支付 '):
-        return
-    provided_order = text[4:].strip()
-    if user_id not in PENDING_PAYMENTS:
-        await update.message.reply_text("未找到待支付订单")
-        return
-    pending = PENDING_PAYMENTS[user_id]
-    if provided_order != pending['order_id']:
-        await update.message.reply_text("订单号不匹配")
-        return
-    category = pending['category']
-    if category not in CARDS or not CARDS[category]:
-        await update.message.reply_text(f"{category} 已售罄")
-        del PENDING_PAYMENTS[user_id]
-        return
-    card = CARDS[category].pop(0)
-    remain = len(CARDS[category])
-    await update.message.reply_text(
-        f"支付确认成功！\n卡密：{card}\n剩余 {remain} 份\n感谢支持～"
-    )
-    del PENDING_PAYMENTS[user_id]
-
-# 保留命令方式添加卡密（备用）
-async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("无权限")
-        return
-    try:
-        parts = update.message.text.split(maxsplit=2)
-        if len(parts) < 3:
-            raise ValueError
-        _, category, card = parts
-        card = card.strip()
-        if category not in CARDS:
-            CARDS[category] = []
-        CARDS[category].append(card)
-        await update.message.reply_text(f"添加成功！{category} 剩余 {len(CARDS[category])} 份")
-    except:
-        await update.message.reply_text("格式错误！示例：/add 1日体验 用户名:exp123 密码:abc456")
-
-def main() -> None:
-    application = Application.builder().token(TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("add", add_card))
-
-    application.add_handler(CallbackQueryHandler(button_callback))
-
-    # 消息处理：先支付确认，再添加卡密（避免冲突）
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_payment_confirm))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_add_card_message))
-
-    # 针对 Python 3.14 + Render 环境的兼容写法
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(application.run_polling(
-            allowed_updates=Update.ALL_TYPES,
-            drop_pending_updates=True,      # 启动时丢弃旧消息，避免堆积
-            poll_interval=0.0,
-            timeout=10,
-            bootstrap_retries=-1,
-            close_loop=False                # 防止关闭警告
-        ))
-    except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        logger.error(f"Polling 异常: {e}")
-    finally:
-        # 清理
-        loop.run_until_complete(application.stop())
-        loop.close()
-
-if __name__ == '__main__':
-    main()
 
 
 
